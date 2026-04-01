@@ -31,8 +31,8 @@ PROMPT_HEADER_1 = """
 
 การแปลตามโครงสร้างและรูปแบบ (Structural Patterns):
 กฎ: หากเจอคำที่ตรงตามโครงสร้างที่กำหนด ให้แปลตามรูปแบบนั้น การแปลชื่อให้ทับศัพท์โดยใช้กฎการทับศัพท์ตัวอักษรเดี่ยว
-- รูปแบบที่ 1 (ตำแหน่ง + ชื่อ): [ชื่อเฉพาะ] + [ตำแหน่ง/ระดับพลัง] ต้องแปลเป็น [คำแปลตำแหน่ง/ระดับพลัง] + [คำแปลชื่อเฉพาะ] (ตัวอย่าง: 震雷域神 -> เทพโลกาเจิ้นเหลย)
-- รูปแบบที่ 2 (คำนำหน้า + ชื่อ): 老 + [ชื่อ] ต้องแปลเป็น ผู้เฒ่า + [ชื่อ] (ตัวอย่าง: 老杨 -> ผู้เฒ่าหยาง)
+- รูปแบบที่ 1 (ตำแหน่ง + ชื่อ): [ชื่อเฉพาะ] + [ตำแหน่ง/ระดับพลัง] ต้องแปลเป็น[คำแปลตำแหน่ง/ระดับพลัง] +[คำแปลชื่อเฉพาะ] (ตัวอย่าง: 震雷域神 -> เทพโลกาเจิ้นเหลย)
+- รูปแบบที่ 2 (คำนำหน้า + ชื่อ): 老 + [ชื่อ] ต้องแปลเป็น ผู้เฒ่า +[ชื่อ] (ตัวอย่าง: 老杨 -> ผู้เฒ่าหยาง)
 
 กฎการทับศัพท์ที่ต้องปฏิบัติตามอย่างเคร่งครัด: การทับศัพท์ตัวอักษรเดี่ยว (Single-Character Transliteration)
 เมื่อทำการทับศัพท์ชื่อตัวละครหรือคำเฉพาะ หากเจอตัวอักษรจีนต่อไปนี้ จะต้อง ทับศัพท์เป็นคำภาษาไทยที่กำหนดให้เท่านั้น:
@@ -66,7 +66,7 @@ PROMPT_HEADER_1 = """
 PROMPT_FOOTER_1 = """
 คำสั่ง : ให้ทำการวิเคราะห์เนื้อที่ให้ไว้ในตอนต้น จากนั้นคิดชื่อภาษาไทยในเหมาะสมในการใช้กับนิยายกำลังภายใน เทพเซียน ให้มีกลิ่นอ้าย นิยายเทพเซียน ศักดิ์สิทธิ์ โบราณ โดยอ้างอิงจาก "เนื้อส่วนหนึ่งของนิยายที่ใช้สำหรับอ้างอิงในการคิดชื่อคำศัพท์"
 สร้างผลลัพธ์ใน ** Code Box ของตัวเอง** โครงสร้างผลลัพธ์สุดท้ายต้องเป็นดังนี้ทุกประการ:
-โดยจัดรูปดังนี้ [คำศัพท์ภาษาจีน] | [คำทับศัพท์ (พินอิน)] [คำแปลภาษาไทย1]/[คำแปลภาษาไทย2]/[คำแปลภาษาไทย]   | (หมวดหมู่และยุคสมัย)[คำอธิบายของตำศัพท์โดยละเอียด] ***จัดให้อยู่ใน Code Block*** 
+โดยจัดรูปดังนี้ [คำศัพท์ภาษาจีน] |[คำทับศัพท์ (พินอิน)][คำแปลภาษาไทย1]/[คำแปลภาษาไทย2]/[คำแปลภาษาไทย]   | (หมวดหมู่และยุคสมัย)[คำอธิบายของตำศัพท์โดยละเอียด] ***จัดให้อยู่ใน Code Block*** 
 """
 FINAL_COMMAND_1 = """คำสั่งสุดท้าย: สำหรับรายการคำศัพท์ภาษาจีนทั้งหมดด้านล่างนี้
 โปรดประมวลผลทีละคำ โดยอ้างอิงจากบริบทใน 'เนื้อหาที่ยกมา' และปฏิบัติตามกฎทั้งหมดที่ให้ไว้ข้างต้นอย่างเคร่งครัด
@@ -93,11 +93,14 @@ def extract_chinese_chars(text):
     return re.findall(r'[\u4e00-\u9fff]+', text)
 
 # ==========================================
-# ฟังก์ชันสำหรับ โหมดที่ 1 (แปลคำศัพท์ + Blacklist)
+# ฟังก์ชันสำหรับ โหมดที่ 1 (แปลคำศัพท์ + Blacklist) - อัพเดทเรื่อง Performance
 # ==========================================
-def process_translation_mode(novel_text, whitelist_text, blacklist_text, special_instruction):
+def process_translation_mode(novel_text, whitelist_text, blacklist_text, special_instruction, progress_bar, status_text):
     MAX_PARA = 75
     MIN_FREQ = 5
+    
+    status_text.markdown("⏳ กำลังเตรียมคลังคำศัพท์...")
+    progress_bar.progress(5)
     
     parsed_blacklist = {}
     if blacklist_text:
@@ -126,33 +129,63 @@ def process_translation_mode(novel_text, whitelist_text, blacklist_text, special
     if not candidate_terms and not found_blacklist_in_novel:
         return "❌ ไม่พบคำศัพท์ใหม่ หรือคำในคลังคำศัพท์ที่ปรากฏในนิยายเลย"
 
-    final_target_terms = []
+    status_text.markdown("🔍 กำลังค้นหาและนับความถี่ของคำศัพท์...")
+    progress_bar.progress(10)
+    
+    final_target_terms =[]
     if candidate_terms:
+        existing_terms = {term for term in candidate_terms if term in novel_text}
+        
         term_counts = defaultdict(int)
-        for term in candidate_terms: 
+        total_existing = len(existing_terms)
+        for idx, term in enumerate(existing_terms):
             term_counts[term] = novel_text.count(term)
-        final_target_terms = sorted([term for term in candidate_terms if term_counts[term] > MIN_FREQ])
+            
+            if total_existing > 0 and idx % max(1, total_existing // 10) == 0:
+                progress_value = 10 + int(30 * (idx / total_existing))
+                progress_bar.progress(min(100, progress_value))
+                
+        final_target_terms = sorted([term for term in existing_terms if term_counts[term] >= MIN_FREQ])
 
     contexts = defaultdict(list)
     all_novel_lines = novel_text.splitlines()
+    total_lines = len(all_novel_lines)
     
     if final_target_terms:
-        regex_pattern = "|".join(re.escape(term) for term in final_target_terms)
-        compiled_regex = re.compile(regex_pattern)
-        for line in all_novel_lines:
+        status_text.markdown(f"📖 กำลังดึงบริบทเนื้อหาสำหรับ **{len(final_target_terms)} คำศัพท์**...")
+        
+        active_targets = set(final_target_terms)
+        
+        for idx, line in enumerate(all_novel_lines):
+            if total_lines > 0 and idx % max(1, total_lines // 20) == 0:
+                progress_value = 40 + int(50 * (idx / total_lines))
+                progress_bar.progress(min(100, progress_value))
+                
             stripped_line = line.strip()
             if not stripped_line: continue
-            found_terms_in_para = set(compiled_regex.findall(stripped_line))
-            for term in found_terms_in_para:
-                if len(contexts[term]) < MAX_PARA: 
+            
+            found_and_full =[]
+            for term in active_targets:
+                if term in stripped_line:
                     contexts[term].append(stripped_line)
+                    if len(contexts[term]) >= MAX_PARA:
+                        found_and_full.append(term)
+            
+            for term in found_and_full:
+                active_targets.remove(term)
+                
+            if not active_targets:
+                break
 
-    context_parts = [PROMPT_HEADER_1.strip()]
+    status_text.markdown("✍️ กำลังประกอบร่างข้อความพรอมต์...")
+    progress_bar.progress(95)
+
+    context_parts =[PROMPT_HEADER_1.strip()]
     if final_target_terms:
         context_parts.append("\nเนื้อส่วนหนึ่งของนิยายที่ใช้สำหรับอ้างอิงในการคิดชื่อคำศัพท์")
         for term in final_target_terms:
             if term in contexts and contexts[term]:
-                term_section = [f"===== คำ: {term} ====="] + contexts[term]
+                term_section =[f"===== คำ: {term} ====="] + contexts[term]
                 context_parts.append("\n\n".join(term_section))
     
     context_output_string = "\n\n".join(context_parts)
@@ -160,7 +193,7 @@ def process_translation_mode(novel_text, whitelist_text, blacklist_text, special
     
     formatted_blacklist_block = ""
     if found_blacklist_in_novel:
-        definitions = [f"{chinese} = {thai}" for chinese, thai in found_blacklist_in_novel.items()]
+        definitions =[f"{chinese} = {thai}" for chinese, thai in found_blacklist_in_novel.items()]
         formatted_blacklist_block = "คำศัพท์ต่อไปนี้ถูกกำหนดไว้แล้ว (พบในนิยาย):\n" + "\n".join(definitions) + "\n\n"
 
     new_terms_list_string = "\n".join(final_target_terms)
@@ -173,59 +206,83 @@ def process_translation_mode(novel_text, whitelist_text, blacklist_text, special
         f"{instructional_bridge_text}"
         f"{new_terms_list_string}"
     )
+    
+    progress_bar.progress(100)
+    status_text.markdown("✅ **ประมวลผลเสร็จสมบูรณ์!**")
     return context_output_string + footer_output_string
 
 # ==========================================
-# ฟังก์ชันสำหรับ โหมดที่ 2 (จัดระดับพลัง - ไม่มี Blacklist)
+# ฟังก์ชันสำหรับ โหมดที่ 2 (จัดระดับพลัง - ไม่มี Blacklist) - อัพเดทเรื่อง Performance
 # ==========================================
-def process_power_level_mode(novel_text, whitelist_text):
+def process_power_level_mode(novel_text, whitelist_text, progress_bar, status_text):
     MAX_PARA = 100
     MIN_FREQ = 1
     
-    # ดึงคำศัพท์จาก Whitelist โดยตรง
+    status_text.markdown("⏳ กำลังเตรียมคำศัพท์ระดับพลัง...")
+    progress_bar.progress(10)
+    
     whitelisted_terms = set(extract_chinese_chars(whitelist_text))
     if not whitelisted_terms:
         return "❌ ไม่พบคำศัพท์ (อักษรจีน) ใน Whitelist", 0
 
-    # นับความถี่
+    status_text.markdown("🔍 กำลังนับความถี่ระดับพลังในนิยาย...")
     term_counts = defaultdict(int)
-    for term in whitelisted_terms:
+    total_terms = len(whitelisted_terms)
+    for idx, term in enumerate(whitelisted_terms):
         term_counts[term] = novel_text.count(term)
-    
-    # กรองด้วย MIN_FREQ
+        if total_terms > 0 and idx % max(1, total_terms // 10) == 0:
+            progress_bar.progress(min(100, 10 + int(30 * (idx / total_terms))))
+            
     final_target_terms = sorted([term for term in whitelisted_terms if term_counts[term] >= MIN_FREQ])
     
     if not final_target_terms:
         return f"❌ ไม่พบคำศัพท์เป้าหมายที่ปรากฏในนิยายอย่างน้อย {MIN_FREQ} ครั้ง", 0
 
-    # ค้นหาบริบท
+    status_text.markdown(f"📖 กำลังดึงบริบทของระดับพลัง **{len(final_target_terms)} ขั้น**...")
     contexts = defaultdict(list)
     all_novel_lines = novel_text.splitlines()
-    regex_pattern = "|".join(re.escape(term) for term in final_target_terms)
-    compiled_regex = re.compile(regex_pattern)
+    total_lines = len(all_novel_lines)
     
-    for para in all_novel_lines:
-        stripped_line = para.strip()
+    active_targets = set(final_target_terms)
+    
+    for idx, line in enumerate(all_novel_lines):
+        if total_lines > 0 and idx % max(1, total_lines // 20) == 0:
+            progress_bar.progress(min(100, 40 + int(50 * (idx / total_lines))))
+            
+        stripped_line = line.strip()
         if not stripped_line: continue
-        found_terms = set(compiled_regex.findall(stripped_line))
-        for term in found_terms:
-            if len(contexts[term]) < MAX_PARA:
+        
+        found_and_full =[]
+        for term in active_targets:
+            if term in stripped_line:
                 contexts[term].append(stripped_line)
+                if len(contexts[term]) >= MAX_PARA:
+                    found_and_full.append(term)
+                    
+        for term in found_and_full:
+            active_targets.remove(term)
+            
+        if not active_targets:
+            break
 
-    # ประกอบร่างข้อความพรอมต์
-    context_parts = [PROMPT_HEADER_2.strip()]
+    status_text.markdown("✍️ กำลังประกอบร่างข้อความพรอมต์...")
+    progress_bar.progress(95)
+
+    context_parts =[PROMPT_HEADER_2.strip()]
     context_parts.append("\nเนื้อส่วนหนึ่งของนิยายที่ใช้สำหรับอ้างอิงในการคิดชื่อคำศัพท์")
     
     count_written = 0
     for term in final_target_terms:
         if term in contexts and contexts[term]:
-            term_section = [f"===== คำ: {term} ====="] + contexts[term]
+            term_section =[f"===== คำ: {term} ====="] + contexts[term]
             context_parts.append("\n\n".join(term_section))
             count_written += 1
             
     context_output_string = "\n\n".join(context_parts)
     final_output_string = context_output_string + f"\n\n\n{PROMPT_FOOTER_2.strip()}"
 
+    progress_bar.progress(100)
+    status_text.markdown("✅ **ประมวลผลเสร็จสมบูรณ์!**")
     return final_output_string, count_written
 
 # ==========================================
@@ -255,11 +312,19 @@ with tab1:
 
     with t1_col2:
         t1_special_inst = st.text_area("✨ คำสั่งเพิ่มเติมเกี่ยวกับคำศัพท์:", height=100)
+        
+        # จุดแสดง Progress Bar
+        t1_status_text = st.empty()
+        t1_progress_bar = st.empty()
+        
         if st.button("🚀 สร้างพรอมต์แปลคำศัพท์", type="primary", use_container_width=True, key="btn1"):
             if not t1_novel_file:
                 st.error("❌ กรุณาอัปโหลดไฟล์นิยาย")
             else:
-                with st.spinner('กำลังประมวลผล...'):
+                # สร้าง Progress Bar ขึ้นมาเมื่อกดปุ่ม
+                p_bar = t1_progress_bar.progress(0)
+                
+                with st.spinner('ระบบกำลังประมวลผล กรุณารอสักครู่...'):
                     novel_content = t1_novel_file.read().decode('utf-8-sig', errors='replace')
                     wl_text = t1_whitelist_text
                     if t1_whitelist_file:
@@ -270,10 +335,22 @@ with tab1:
                         with open("blacklist.txt", 'r', encoding='utf-8-sig', errors='replace') as f:
                             bl_content = f.read()
 
-                    prompt1 = process_translation_mode(novel_content, wl_text, bl_content, t1_special_inst)
-                    if prompt1.startswith("❌"): st.warning(prompt1)
+                    prompt1 = process_translation_mode(novel_content, wl_text, bl_content, t1_special_inst, p_bar, t1_status_text)
+                    
+                    if prompt1.startswith("❌"): 
+                        st.warning(prompt1)
+                        p_bar.empty() # ลบแถบออกถ้ามี error
+                        t1_status_text.empty()
                     else:
-                        st.success("✅ สำเร็จ! ก๊อปปี้โค้ดด้านล่างได้เลย")
+                        st.success("🎉 สำเร็จ! สามารถคลิกไอคอน Copy มุมขวาบนของกล่องโค้ด หรือกดปุ่มดาวน์โหลดไฟล์ได้เลย")
+                        # ปุ่มดาวน์โหลด (ตัวช่วยสำหรับคนใช้ iPad แล้วก๊อปปี้ยาก)
+                        st.download_button(
+                            label="💾 ดาวน์โหลดข้อความนี้เป็นไฟล์ .txt",
+                            data=prompt1,
+                            file_name="prompt_translation_mode.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
                         st.code(prompt1, language="text")
 
 # ---------------- แท็บที่ 2 ----------------
@@ -286,17 +363,34 @@ with tab2:
         t2_whitelist_file = st.file_uploader("📝 2. เลือกไฟล์คำศัพท์เฉพาะ ระดับพลัง (.txt)", type=['txt'], key="t2_wl_file")
 
     with t2_col2:
+        # จุดแสดง Progress Bar
+        t2_status_text = st.empty()
+        t2_progress_bar = st.empty()
+        
         if st.button("🚀 สร้างพรอมต์จัดเรียงระดับพลัง", type="primary", use_container_width=True, key="btn2"):
             if not t2_novel_file or not t2_whitelist_file:
                 st.error("❌ กรุณาอัปโหลดไฟล์ให้ครบทั้ง 2 ช่อง")
             else:
-                with st.spinner('กำลังประมวลผล...'):
+                p_bar = t2_progress_bar.progress(0)
+                
+                with st.spinner('ระบบกำลังประมวลผล กรุณารอสักครู่...'):
                     novel_content = t2_novel_file.read().decode('utf-8-sig', errors='replace')
                     wl_content = t2_whitelist_file.read().decode('utf-8-sig', errors='replace')
 
-                    prompt2, count = process_power_level_mode(novel_content, wl_content)
+                    prompt2, count = process_power_level_mode(novel_content, wl_content, p_bar, t2_status_text)
+                    
                     if isinstance(prompt2, str) and prompt2.startswith("❌"): 
                         st.warning(prompt2)
+                        p_bar.empty()
+                        t2_status_text.empty()
                     else:
-                        st.success(f"✅ สำเร็จ! สร้างบริบทให้ {count} คำ ก๊อปปี้โค้ดด้านล่างได้เลย")
+                        st.success(f"🎉 สำเร็จ! สร้างบริบทให้ {count} คำ (คลิกไอคอน Copy มุมขวาบนของกล่องโค้ดได้เลย)")
+                        # ปุ่มดาวน์โหลด
+                        st.download_button(
+                            label="💾 ดาวน์โหลดข้อความนี้เป็นไฟล์ .txt",
+                            data=prompt2,
+                            file_name="prompt_power_level_mode.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
                         st.code(prompt2, language="text")
